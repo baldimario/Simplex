@@ -5,22 +5,22 @@ classdef Simplex
         start_area = 5; %triangle start area
         start_point = [0 0]; %triangle start point
         stopping_area = 1e-5; %first stop condition on the minimum area
-        max_halvings = 20; %second stop condition, maximum halvings count
+        max_steps = 20; %second stop condition, maximum halvings count
         dt = 0; %animation delta time between frames (0 = off)
         plot = false; %enable or disable the plotting
         field = 10; %figure subspace of view
         slices = 5; %number of planes to draw the isolevel maps
-        color = 'red'; %simplex polytope color
+        color = 'blue'; %simplex polytope color
     end
     methods
         %contructor
-        function obj = Simplex(func, bounds, start_area, start_point, stopping_area, max_halvings)
+        function obj = Simplex(func, bounds, start_area, start_point, stopping_area, max_steps)
             obj.func = func;
             obj.bounds = bounds;
             obj.start_area = start_area;
             obj.start_point = start_point;
             obj.stopping_area = stopping_area;
-            obj.max_halvings = max_halvings;
+            obj.max_steps = max_steps;
         end
         
         %core function
@@ -37,11 +37,11 @@ classdef Simplex
                 %let's draw
                 figure; 
                 hold on;
-                view(0,90);
                 
                 obj.draw_function();
                 obj.draw_polytope(P);
                 obj.draw_bounds();
+                view(65,8);
             end
             
             while persist
@@ -68,13 +68,13 @@ classdef Simplex
                 if obj.watchdog(Polytopes) %check if the last polytopes are are in a flipping loop condition
                     P = obj.halve(P, j);  %halve the polytope on the last vertex pivot
                     halvings = halvings + 1; %increment the halvings counter
-
-                    if halvings >= obj.max_halvings %if the maximum halvings counter reach the limit
-                        persist = false; %break the loop
-                        continue;
-                    end
                 end
-
+                
+                if flips >= obj.max_steps %if the maximum halvings counter reach the limit
+                    persist = false; %break the loop
+                    continue;
+                end
+                
                 persist = ~obj.detect_stop(P); %if the area reach the stop area condition break the loop
             end
 
@@ -121,16 +121,22 @@ classdef Simplex
                             B(i, j) = obj.bounds{b}(X(i), Y(j), Z(k));
                         end
                     end
-                    B = B >= 0;
-                    B = double(B);
-                    B(B == 0) = NaN;
+                    Bm = B >= 0;
+                    Bm = double(Bm);
+                    B(Bm == 0) = NaN;
                     J = J.*B;
                 end
                 
                 offset = ((k-(length(Z)/2))*(obj.field/obj.slices));
-                K = (ones(length(X), length(Y))*offset)+0.1;
+                K = (ones(length(X), length(Y))*offset)+(obj.field/obj.slices)/2;
                 
-                surf(X, Y, K, J, 'FaceAlpha', 0.3,'LineStyle','none'); 
+                
+                colormap(jet);
+                hold on
+                s = surf(X, Y, K, 'FaceAlpha', 0.5,'LineStyle','none', 'cdata', J, 'cdatamapping', 'direct'); 
+                colormap(jet);
+                hold on
+                colormap(jet);
             end
         end
 
@@ -224,7 +230,7 @@ classdef Simplex
             for k = 1:length(Z)
                 for i = 1:length(X)
                     for j = 1:length(Y)
-                        V(k, i, j) = obj.func(X(i), Y(j), Z(k));
+                        V(k, i, j) = -obj.func(X(i), Y(j), Z(k));
                     end
                 end
             end
@@ -237,7 +243,8 @@ classdef Simplex
                 
                 %draw the plane with the iso-level colors of the function
                 %computed in its coordinates
-                surf(X, Y, Z, reshape(V(j,:,:), [length(X), length(Y)]), 'FaceAlpha', 0.3,'LineStyle','none', 'FaceColor','interp');
+                colormap(jet);
+                surf(X, Y, Z, reshape(V(j,:,:), [length(X), length(Y)]), 'FaceAlpha', 0.25,'LineStyle','none', 'FaceColor','interp');
             end
         end
 
