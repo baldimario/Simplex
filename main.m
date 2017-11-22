@@ -3,7 +3,7 @@ import Simplex
 close all
 
 %initializing Simplex class
-s = Simplex(@cost, {@bound1}, 10, [-17 -17 10], 1e-10, 150);
+s = Simplex(@cost, {@bound1, @bound2}, 10, [-17 -17 10], 1e-10, 150);
 s.dt = 0.1; %animation delta time between frames (0 = off)
 s.field = 20; %figure subspace of view
 s.slices = 20; %15 planes to draw the isolevel maps
@@ -14,6 +14,10 @@ s.plot = true; %enable the polotting
 
 function f = bound1(x, y, z) %sphere bound
     f = -((x+15).^2 + (y+15).^2 + (z-10).^2 - 20^2);
+end
+
+function f = bound2(x, y, z) %sphere bound
+    f = -((x+15).^2 + (y+15).^2 + (z+10).^2 - 10^2);
 end
 
 function f = get_measure(Q, m) %get the potential from the measure in a certain position

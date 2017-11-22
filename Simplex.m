@@ -113,19 +113,18 @@ classdef Simplex
             for k = 1:length(Z)
                 J = zeros(length(X), length(Y));
                 
-                for b = 1:length(obj.bounds)
-                    B = zeros(length(X), length(Y));
-                    
-                    for i = 1:length(X)
-                        for j = 1:length(Y)
-                            B(i, j) = obj.bounds{b}(X(i), Y(j), Z(k));
+                B = zeros(length(X), length(Y));
+
+                for i = 1:length(X)
+                    for j = 1:length(Y)                
+                        for b = 1:length(obj.bounds)
+                            B(i, j) = B(i, j) || obj.bounds{b}(X(i), Y(j), Z(k)) > 0;
                         end
                     end
-                    Bm = B >= 0;
-                    Bm = double(Bm);
-                    B(Bm == 0) = NaN;
-                    J = J.*B;
                 end
+                Bm = double(B);
+                B(Bm == 0) = NaN;
+                J = J.*B;
                 
                 offset = ((k-(length(Z)/2))*(obj.field/obj.slices));
                 K = (ones(length(X), length(Y))*offset)+(obj.field/obj.slices)/2;
