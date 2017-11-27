@@ -3,7 +3,7 @@ classdef Simplex
         func = 0; %function to minimize
         bounds = {}; %bounds list
         start_area = 5; %triangle start area
-        start_point = [0 0]; %triangle start point
+        start_point = 0; %triangle start point
         stopping_area = 1e-5; %first stop condition on the minimum area
         max_steps = 20; %second stop condition, maximum halvings count
         dt = 0; %animation delta time between frames (0 = off)
@@ -14,11 +14,10 @@ classdef Simplex
     end
     methods
         %contructor
-        function obj = Simplex(func, bounds, start_area, start_point, stopping_area, max_steps)
+        function obj = Simplex(func, bounds, start_area, stopping_area, max_steps)
             obj.func = func;
             obj.bounds = bounds;
             obj.start_area = start_area;
-            obj.start_point = start_point;
             obj.stopping_area = stopping_area;
             obj.max_steps = max_steps;
         end
@@ -113,16 +112,17 @@ classdef Simplex
             for k = 1:length(Z)
                 J = zeros(length(X), length(Y));
                 
-                B = zeros(length(X), length(Y));
+                B = ones(length(X), length(Y));
 
                 for i = 1:length(X)
                     for j = 1:length(Y)                
                         for b = 1:length(obj.bounds)
-                            B(i, j) = B(i, j) || obj.bounds{b}(X(i), Y(j), Z(k)) > 0;
+                            B(i, j) = B(i, j) && obj.bounds{b}(X(i), Y(j), Z(k)) > 0;
                         end
                     end
                 end
                 Bm = double(B);
+                Bm
                 B(Bm == 0) = NaN;
                 J = J.*B;
                 
@@ -138,6 +138,34 @@ classdef Simplex
                 colormap(jet);
             end
         end
+        
+        %get_start_point returns a random and reasonable start point in bounds
+        function y = get_start_point(obj)
+            if(obj.start_point ~= 0)
+                y = obj.start_point;
+            else
+                if(length(obj.bounds) > 0)
+                    v = [];
+
+                    s = -obj.field:(obj.field/obj.slices):obj.field;
+                    for i = s
+                        for j = s
+                            for k = s
+                                for b = 1:length(obj.bounds)
+                                    if(obj.bounds{b}(i, j, k) > 0)
+                                        v = [v; [i j k]];
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    y = v(randi(length(v)), :);
+                else
+                    y = [rand*obj.field, rand*obj.field, rand*obj.field];
+                end
+            end
+        end
 
         %get_first_polytope, as the name shows, computes the first polytope
         %according to the given initial point
@@ -145,10 +173,12 @@ classdef Simplex
             l = sqrt(4*obj.start_area/sqrt(3)); %get the side of the equilateral triangle
             h = sqrt(3)*l/2; %get the height of the equilateral triangle
 
-            v1 = [obj.start_point]; %the first vertex is the start point
-            v2 = [obj.start_point + [h, 0 h]]; 
-            v3 = [obj.start_point + [h, l/2 0]];
-            v4 = [obj.start_point + [h, -l/2 0]];
+            start_point = obj.get_start_point();
+            
+            v1 = [start_point]; %the first vertex is the start point
+            v2 = [start_point + [h, 0 h]]; 
+            v3 = [start_point + [h, l/2 0]];
+            v4 = [start_point + [h, -l/2 0]];
 
             P = [v1; v2; v3; v4];
         end

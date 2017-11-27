@@ -3,21 +3,21 @@ import Simplex
 close all
 
 %initializing Simplex class
-s = Simplex(@cost, {@bound1, @bound2}, 10, [-17 -17 10], 1e-10, 150);
+s = Simplex(@cost, {@bound1, @bound2}, .25, 1e-10, 150);
 s.dt = 0.1; %animation delta time between frames (0 = off)
-s.field = 20; %figure subspace of view
-s.slices = 20; %15 planes to draw the isolevel maps
-s.color = 'magenta'; %simplex politope color
+s.field = 2; %figure subspace of view
+s.slices = 10; %15 planes to draw the isolevel maps
+s.color = 'green'; %simplex politope color
 s.plot = true; %enable the polotting
 
 [value, coordinates, flips, halvings, area] =  s.compute() %compute the algorithm
 
 function f = bound1(x, y, z) %sphere bound
-    f = -((x+15).^2 + (y+15).^2 + (z-10).^2 - 20^2);
+    f = -((x+1.5).^2 + (y+1.5).^2 + (z-.8).^2 - 2^2);
 end
 
 function f = bound2(x, y, z) %sphere bound
-    f = -((x+15).^2 + (y+15).^2 + (z+10).^2 - 10^2);
+    f = -((x+1.5).^2 + (y+1.5).^2 + (z+.5).^2 - 2^2);
 end
 
 function f = get_measure(Q, m) %get the potential from the measure in a certain position
@@ -28,9 +28,33 @@ function f = get_measure(Q, m) %get the potential from the measure in a certain 
 end
 
 function f = cost(x, y, z)
-    Q = [1 0 0; 0 1 0; 0 0 1; 0 0 0; 0 0 1; 0 1 1; 1 0 0; 1 1 1;]; %known charges
-    q = [0.5 0.5 0.5]; %unknown charge
-    M = 2*[2 0 0; 0 2 0; 0 0 2]; %measures coordinates in the R^3 space
+    n_q = 10; %number of random charges in a 1x1x1 box
+    
+    Q = rand(n_q, 3) - 0.5; %generate 10 random charges
+    
+    q = Q(end, :); %unknown charge
+    Q = Q(1:end-1, :); %known charge
+    
+    D = sqrt(3); %diagonal of the 1x1x1 box (normalization parameter)
+    
+    M = [1 1 1]; %measures coordinates in the R^3 space
+    
+    %mapping the measurers box
+    for i = -0.5:0.5:0.5
+        for j = -0.5:0.2:0.5
+            %X planes
+            M = [M; [-0.5, i, j]];
+            M = [M; [0.5, i, j]];
+            
+            %Y planes
+            M = [M; [i, -0.5, j]];
+            M = [M; [i, 0.5, j]];
+            
+            %Z planes
+            M = [M; [i, j, -0.5]];
+            M = [M; [i, j, 0.5]];
+        end
+    end
     
     %get the measure for each measurer for all the charges
     P = zeros(1, length(M(:, 1))); 
