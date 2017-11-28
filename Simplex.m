@@ -11,6 +11,7 @@ classdef Simplex
         field = 10; %figure subspace of view
         slices = 5; %number of planes to draw the isolevel maps
         color = 'blue'; %simplex polytope color
+        penality = 100;
     end
     methods
         %contructor
@@ -30,6 +31,7 @@ classdef Simplex
             persist = true; %loop condition
 
             P = obj.get_first_polytope(); %getting the fist polytope
+            
             [Polytopes, flips] = obj.add_polytope(Polytopes, flips, P);
             
             if obj.plot %if plot it's enables 
@@ -38,37 +40,44 @@ classdef Simplex
                 hold on;
                 
                 obj.draw_function();
-                obj.draw_polytope(P);
+                obj.draw_polytope(P, 'green');
                 obj.draw_bounds();
                 view(65,8);
+                axis equal;
             end
             
-            while persist
-                m = obj.find_maximums(P); %find the maximums positions to select the right vertex
-                for j = 1:4 %for each vertex
-                    vx = obj.predict_vertex(P, m(j)); %predict the flipped coordinates
+            old_j = 1;
+            while persist 
+                color = 'green';
+                if obj.watchdog(Polytopes) %check if the last polytopes are are in a flipping loop condition
+                    
+                    color = 'red';
+                    P = obj.halve(P, old_j);  %halve the polytope on the last vertex pivot
+                    
+                    P = obj.set_penality(P); %set the penality for each vertex
+                    
+                    halvings = halvings + 1; %increment the halvings counter
+                else
+                    P = obj.set_penality(P); %set the penality for each vertex
 
-                    if obj.check_bounds(vx) %check if the prediction respect the bounds
-                        P = obj.flip_polytope(P, m(j)); %flip the right vertex
-                        break;
-                    end
+                    j = obj.find_maximum(P); %find the maximum vertex
+
+                    P = obj.flip_polytope(P, j); %flip the j-th vertex of the polytope
+                    
+                    old_j = j;
                 end
-
-                [Polytopes, flips] = obj.add_polytope(Polytopes, flips, P); %add the new polytope to the list
                 
+                [Polytopes, flips] = obj.add_polytope(Polytopes, flips, P); %add the new polytope to the list
+               
+                                
                 if obj.plot %if plot enabled draw the polytope
-                    obj.draw_polytope(P);
+                    obj.draw_polytope(P, color);
                 end
                 
                 if(obj.dt ~= 0 && obj.plot) %if animation it's enabled (dt != 0) (if plot is disabled then disable animations)
                     pause(obj.dt); %pause for dt seconds
                 end
-
-                if obj.watchdog(Polytopes) %check if the last polytopes are are in a flipping loop condition
-                    P = obj.halve(P, j);  %halve the polytope on the last vertex pivot
-                    halvings = halvings + 1; %increment the halvings counter
-                end
-                
+               
                 if flips >= obj.max_steps %if the maximum halvings counter reach the limit
                     persist = false; %break the loop
                     continue;
@@ -80,22 +89,32 @@ classdef Simplex
             area = obj.get_area(P); %return the area
             [value, coordinates] = obj.get_results(P); %return the value of the minimum and the coordinates
         end
+        
+        %set_penality compute the penality for each vertex in according to
+        %the their coordinates checking if them are in bounds or not
+        function P = set_penality(obj, P)
+            V = P(:, 1:3, :);
+            p = obj.check_bounds(V)*obj.penality;
+            p(p == 0) = 1;
+            P(:, 5, :) = p';
+        end
 
         %predict_vertex gets the polytope and the vertex index to flip and
         %returns the coordinates of the flipped vertex
         function vx = predict_vertex(obj, P, j)
-            vx = P(j, 1:end); %get the pivot
+            vx = P(j, 1:3); %get the pivot
             
             %get other vertex
-            V = P([1:j-1 j+1:end], 1:end); 
-            v1 = V(1, 1:end);
-            v2 = V(2, 1:end);
-            v3 = V(3, 1:end);
-            
+            V = P([1:j-1 j+1:end], 1:3); 
+            v1 = V(1, 1:3);
+            v2 = V(2, 1:3);
+            v3 = V(3, 1:3);
+                        
             
             p = (v1 + v2 + v3)/3; %find the middle point
             d = (p-vx); %get the distance from the pivot and the middle point
             vx = p+d; %flip the vertex in direction of middle point
+            vx = [vx obj.compute_value(vx) 1];
         end
 
         %draw the bounds in according to the field and slices parameters
@@ -122,7 +141,7 @@ classdef Simplex
                     end
                 end
                 Bm = double(B);
-                Bm
+                
                 B(Bm == 0) = NaN;
                 J = J.*B;
                 
@@ -144,29 +163,20 @@ classdef Simplex
             if(obj.start_point ~= 0)
                 y = obj.start_point;
             else
-                if(length(obj.bounds) > 0)
-                    v = [];
-
-                    s = -obj.field:(obj.field/obj.slices):obj.field;
-                    for i = s
-                        for j = s
-                            for k = s
-                                for b = 1:length(obj.bounds)
-                                    if(obj.bounds{b}(i, j, k) > 0)
-                                        v = [v; [i j k]];
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    y = v(randi(length(v)), :);
-                else
-                    y = [rand*obj.field, rand*obj.field, rand*obj.field];
-                end
+                x = obj.field*2*rand - obj.field;
+                y = obj.field*2*rand - obj.field;
+                z = obj.field*2*rand - obj.field;
+                y = [x y z];
             end
         end
 
+        %compute_value is an adapter to the minimize function to compute 
+        %the value of a polytope vertex passing the coordinates instead 
+        %of three values
+        function y = compute_value(obj, v)
+            y = obj.func(v(1), v(2), v(3));
+        end
+        
         %get_first_polytope, as the name shows, computes the first polytope
         %according to the given initial point
         function P = get_first_polytope(obj)
@@ -180,38 +190,47 @@ classdef Simplex
             v3 = [start_point + [h, l/2 0]];
             v4 = [start_point + [h, -l/2 0]];
 
+            v1 = [v1 obj.compute_value(v1) 1];
+            v2 = [v2 obj.compute_value(v2) 1];
+            v3 = [v3 obj.compute_value(v3) 1];
+            v4 = [v4 obj.compute_value(v4) 1];
+            
             P = [v1; v2; v3; v4];
         end
 
         %get_results returns the value of the minimum of func calculated on
         %each vertex of the last polytope and its coordinate
         function [z, x] = get_results(obj, P)
-            v = obj.func(P(1:end, 1), P(1:end, 2), P(1:end, 3)); %calculate the function for each vertex
-            [z, j] = min(v); %find the minimum
-            x = P(j, 1:end);
+            [z, j] = min(P(:, 4));
+            x = P(j, 1:3);
         end
 
         %halve halves the polytope taking the index of the pivot vertex
         function P = halve(obj, P, j)
-            vx = P(j, 1:end); %get the pivot vertex
+            vx = P(j, 1:3); %get the pivot vertex
             
             %get the other vertex
-            V = P([1:j-1 j+1:end], 1:end); 
-            v1 = V(1, 1:end);
-            v2 = V(2, 1:end);
-            v3 = V(3, 1:end);
+            V = P([1:j-1 j+1:end], 1:3); 
+            v1 = V(1, 1:3);
+            v2 = V(2, 1:3);
+            v3 = V(3, 1:3);
 
             %compute the middle points of each vertex with the pivot vertex
             v1 = (vx+v1)/2;
             v2 = (vx+v2)/2;
             v3 = (vx+v3)/2;
 
+            vx = [vx obj.compute_value(vx) 1];
+            v1 = [v1 obj.compute_value(v1) 1];
+            v2 = [v2 obj.compute_value(v2) 1];
+            v3 = [v3 obj.compute_value(v3) 1];
+            
             P = [vx; v1; v2; v3];
         end
 
         %get_area returns the given polytope area
         function y = get_area(obj, P)
-            l = norm(P(1, 1:end) - P(2, 1:end)); %calculates the side
+            l = norm(P(1, 1:3) - P(2, 1:3)); %calculates the side
             y = 4*sqrt(3)*l/2; %single equilateral triangle area multiplied by 4 faces
         end
 
@@ -229,23 +248,33 @@ classdef Simplex
             flips = flips+1; %increment the halvings
         end
 
-        %whatchdog gets the polytopes list and check if there is a repeated
+        %watchdog gets the polytopes list and check if there is a repeated
         %polytope in the last 8 elements of the list, if so returns true
         %otherwise returns false
         function y = watchdog(obj, Polytopes)
-            y =false;
+            y = false;
             
-            if(length(Polytopes) >= 8)
-                for j = 1:8
-                    for k = 1:8
+            n_p = 6;
+            
+            test = [];
+            if(length(Polytopes) > n_p)
+                for j = 1:n_p
+                    for k = 1:n_p
                         if j ~= k
-                            if Polytopes(:,:,end-8+j) == Polytopes(:,:,end-8+k)
+                            if Polytopes(:,:,end-n_p+j) == Polytopes(:,:,end-n_p+k)
                                 y = true;
+                                %p1 = Polytopes(:,:,end-n_p+j)
+                                %p2 = Polytopes(:,:,end-n_p+k)
+                                %disp('*******')
+                                %pl = Polytopes(:, :, end-n_p:end) 
+                                %disp('-------')
                             end
                         end
                     end
                 end
             end
+            
+            test;
         end
 
         %draw_function draws the function to minimize in according to the field and slices parameters
@@ -259,7 +288,7 @@ classdef Simplex
             for k = 1:length(Z)
                 for i = 1:length(X)
                     for j = 1:length(Y)
-                        V(k, i, j) = -obj.func(X(i), Y(j), Z(k));
+                        V(k, i, j) = obj.func(X(i), Y(j), Z(k));
                     end
                 end
             end
@@ -277,66 +306,68 @@ classdef Simplex
             end
         end
 
-        %find_maximums
-        function m = find_maximums(obj, P)
-            m = [];
-            
-            %repeat for a number of times equals to polytope vertex
-            for j = 1:length(P(:, 1))
-                %create a list containing the every polytope vertex
-                V = [obj.func(P(1, 1), P(1, 2), P(1, 3)),
-                    obj.func(P(2, 1), P(2, 2), P(2, 3)),
-                    obj.func(P(3, 1), P(3, 2), P(3, 3)),
-                    obj.func(P(4, 1), P(4, 2), P(4, 3))];
-                
-                %find the maximum
-                [r, y] = max(V);
-                
-                %remove the vertex from the polytope
-                P(y, 1:end) = NaN;
-                
-                %save the maximum
-                m = [m y];
-            end
+        %find_maximum
+        function m = find_maximum(obj, P)
+            %multiplication between penality and function value in the
+            %vertex coordinates
+            V = P(:, 4, :).*P(:, 5, :);
+
+            %find the maximum
+            [r, m] = max(V);
+        end
+        
+        %find_minimum
+        function m = find_minimum(obj, P)
+            %value of the function in the vertices
+            V = P(:, 4, :).*P(:, 5, :);
+
+            %find the maximum
+            [r, m] = min(V);
         end
         
         %flip_polytope flips the j-th vertex of the polytope 
         function P = flip_polytope(obj, P, j)
-            vx = P(j, 1:end); %get the vertex to flip
+            vx = P(j, 1:3); %get the vertex to flip
             
             %get other vertex
             V = P([1:j-1 j+1:end], 1:end); 
-            v1 = V(1, 1:end);
-            v2 = V(2, 1:end);
-            v3 = V(3, 1:end);
+            v1 = V(1, 1:3);
+            v2 = V(2, 1:3);
+            v3 = V(3, 1:3);
 
             p = (v1+v2+v3)/3; %compute the midde point of other vertex
             d = (p-vx); %calculate the distance vector from the middle point and the vertex to flip
             vx = p+d; %flip the vertex
-
-            P(j, 1:end) = vx;
+            
+            P(j, 1:end) = [vx, obj.compute_value(vx) 1];
         end
 
         %check_bounds returns true if every bound it's satisfied by the v coordinates as their inputs
         function y = check_bounds(obj, v)
-            y = true;
-
-            for j = 1:length(obj.bounds)
-                if obj.bounds{j}(v(1), v(2), v(3)) < 0
-                    y = false;
+            y = ones(1, length(v));
+            
+            if(isempty(obj.bounds))
+                for k = 1:length(v)
+                    for j = 1:length(obj.bounds)
+                        if obj.bounds{j}(v(k, 1), v(k, 2), v(k, 3)) < 0
+                            y(1,k) = 0;
+                        end
+                    end
                 end
             end
+
+            y = y == 0;
         end
 
         %draw_polytope draws the polytope in the 3-d space
-        function y = draw_polytope(obj, P)
-            X = P(1:end, 1);
-            Y = P(1:end, 2);
-            Z = P(1:end, 3);
+        function y = draw_polytope(obj, P, color)
+            X = P(:, 1);
+            Y = P(:, 2);
+            Z = P(:, 3);
 
             f = [1 2 3; 1 2 4; 1 3 4; 2 3 4]; %faces list every index it's a vertex of the polytope and 3 vertex form a triangular face of the polytope
 
-            patch('Faces',f,'Vertices',P, 'EdgeColor','black','FaceColor',obj.color,'LineWidth',2, 'FaceAlpha', 0.7);
+            patch('Faces',f,'Vertices',P(:, 1:3), 'EdgeColor','black','FaceColor',color,'LineWidth',2, 'FaceAlpha', 0.7);
 
             y = 1;
         end
