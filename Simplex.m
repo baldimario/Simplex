@@ -15,12 +15,13 @@ classdef Simplex
     end
     methods
         %contructor
-        function obj = Simplex(func, bounds, start_area, stopping_area, max_steps)
+        function obj = Simplex(func, bounds, start_point, start_area, stopping_area, max_steps)
             obj.func = func;
             obj.bounds = bounds;
             obj.start_area = start_area;
             obj.stopping_area = stopping_area;
             obj.max_steps = max_steps;
+            obj.start_point = start_point;
         end
         
         %core function
@@ -50,16 +51,16 @@ classdef Simplex
             while persist 
                 color = 'green';
                 if obj.watchdog(Polytopes) %check if the last polytopes are are in a flipping loop condition
-                    
-                    color = 'red';
-                    P = obj.halve(P, old_j);  %halve the polytope on the last vertex pivot
-                    
                     P = obj.set_penality(P); %set the penality for each vertex
+                    
+                    j = obj.find_minimum(P);
+                    color = 'red';
+                    P = obj.halve(P, j);  %halve the polytope on the last vertex pivot
                     
                     halvings = halvings + 1; %increment the halvings counter
                 else
                     P = obj.set_penality(P); %set the penality for each vertex
-
+                    
                     j = obj.find_maximum(P); %find the maximum vertex
 
                     P = obj.flip_polytope(P, j); %flip the j-th vertex of the polytope
@@ -95,6 +96,9 @@ classdef Simplex
         function P = set_penality(obj, P)
             V = P(:, 1:3, :);
             p = obj.check_bounds(V)*obj.penality;
+            if(max(p) > 0)
+                p
+            end
             p(p == 0) = 1;
             P(:, 5, :) = p';
         end
@@ -151,7 +155,7 @@ classdef Simplex
                 
                 colormap(jet);
                 hold on
-                s = surf(X, Y, K, 'FaceAlpha', 0.5,'LineStyle','none', 'cdata', J, 'cdatamapping', 'direct'); 
+                s = surf(X, Y, K, 'FaceAlpha', 0.3,'LineStyle','none', 'cdata', J, 'cdatamapping', 'direct'); 
                 colormap(jet);
                 hold on
                 colormap(jet);
@@ -174,7 +178,7 @@ classdef Simplex
         %the value of a polytope vertex passing the coordinates instead 
         %of three values
         function y = compute_value(obj, v)
-            y = obj.func(v(1), v(2), v(3));
+            y = obj.func(v(1:3));
         end
         
         %get_first_polytope, as the name shows, computes the first polytope
@@ -256,25 +260,17 @@ classdef Simplex
             
             n_p = 6;
             
-            test = [];
             if(length(Polytopes) > n_p)
                 for j = 1:n_p
                     for k = 1:n_p
                         if j ~= k
                             if Polytopes(:,:,end-n_p+j) == Polytopes(:,:,end-n_p+k)
                                 y = true;
-                                %p1 = Polytopes(:,:,end-n_p+j)
-                                %p2 = Polytopes(:,:,end-n_p+k)
-                                %disp('*******')
-                                %pl = Polytopes(:, :, end-n_p:end) 
-                                %disp('-------')
                             end
                         end
                     end
                 end
             end
-            
-            test;
         end
 
         %draw_function draws the function to minimize in according to the field and slices parameters
@@ -286,9 +282,9 @@ classdef Simplex
             
             %calculates the function values in a 3-dimensional grid
             for k = 1:length(Z)
-                for i = 1:length(X)
-                    for j = 1:length(Y)
-                        V(k, i, j) = obj.func(X(i), Y(j), Z(k));
+                for i = 1:length(Y)
+                    for j = 1:length(X)
+                        V(k, i, j) = obj.func([X(j) Y(i) Z(k)]);
                     end
                 end
             end
@@ -302,7 +298,7 @@ classdef Simplex
                 %draw the plane with the iso-level colors of the function
                 %computed in its coordinates
                 colormap(jet);
-                surf(X, Y, Z, reshape(V(j,:,:), [length(X), length(Y)]), 'FaceAlpha', 0.25,'LineStyle','none', 'FaceColor','interp');
+                surf(X, Y, Z, 'CData', reshape(V(j,:,:), [length(X), length(Y)]), 'FaceAlpha', 0.4,'LineStyle','none', 'FaceColor','interp');
             end
         end
 
@@ -346,7 +342,7 @@ classdef Simplex
         function y = check_bounds(obj, v)
             y = ones(1, length(v));
             
-            if(isempty(obj.bounds))
+            if(length(obj.bounds) > 0)
                 for k = 1:length(v)
                     for j = 1:length(obj.bounds)
                         if obj.bounds{j}(v(k, 1), v(k, 2), v(k, 3)) < 0
@@ -355,7 +351,7 @@ classdef Simplex
                     end
                 end
             end
-
+            
             y = y == 0;
         end
 
