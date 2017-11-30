@@ -42,10 +42,11 @@ for i = -1:1:1
 end
 
 %initializing Simplex class
-s = Simplex(@cost_function, {}, [-.3 -.3 .1], .075, 1e-5, 25); % NOTE: I have changed the value
+s = Simplex(@cost_function, {}, [-.3 -.3 .1], .075, 1e-20, 250);
 s.dt = 0; %animation delta time between frames (0 = off)
 s.field = .7; %figure subspace of view
 s.slices = 20; %10 planes to draw the isolevel maps
+s.color = 'green'; %simplex politope color
 s.plot = true; %enable the polotting
 
 [value, coordinates, flips, halvings, area] =  s.compute() %compute the algorithm
@@ -99,6 +100,5 @@ function U = get_all_potentials(Q)
 end
 
 function u = get_potential(p, m) %compute charge's potential detected from a measurer
-    u = 1/(norm(p-m)*sqrt(12)); %yet normalized % NOTE: Non dobbiamo normalizzare anche su M?  
-    
+    u = 1/(norm(p-m)*sqrt(12)); %yet normalized  %  Miss m
 end
