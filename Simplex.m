@@ -3,14 +3,14 @@ classdef Simplex
         func = 0; %function to minimize
         bounds = {}; %bounds list
         start_area = 5; %triangle start area
-        start_point = [-1 -1 1]; %triangle start point
+        start_point = 0; %triangle start point
         stopping_area = 1e-5; %first stop condition on the minimum area
         max_steps = 20; %second stop condition, maximum halvings count
         dt = 0; %animation delta time between frames (0 = off)
         plot = false; %enable or disable the plotting
-        field = 40; %figure subspace of view
+        field = 10; %figure subspace of view
         slices = 5; %number of planes to draw the isolevel maps
-        color; %simplex polytope color
+        color = 'blue'; %simplex polytope color
         penality = 100;
     end
     methods
@@ -47,16 +47,14 @@ classdef Simplex
                 axis equal;
             end
             
-
+            old_j = 1;
             while persist 
                 color = 'green';
                 if obj.watchdog(Polytopes) %check if the last polytopes are are in a flipping loop condition
                     P = obj.set_penality(P); %set the penality for each vertex
                     
                     j = obj.find_minimum(P);
-                    
                     color = 'red';
-                    
                     P = obj.halve(P, j);  %halve the polytope on the last vertex pivot
                     
                     halvings = halvings + 1; %increment the halvings counter
@@ -66,18 +64,21 @@ classdef Simplex
                     j = obj.find_maximum(P); %find the maximum vertex
 
                     P = obj.flip_polytope(P, j); %flip the j-th vertex of the polytope
+                    
+                    old_j = j;
                 end
                 
                 [Polytopes, flips] = obj.add_polytope(Polytopes, flips, P); %add the new polytope to the list
                
                                 
                 if obj.plot %if plot enabled draw the polytope
-                     obj.draw_polytope(P, color);
-                     if obj.dt ~= 0 %if animation it's enabled (dt != 0) 
-                         pause(obj.dt) %pause for dt seconds
-                     end
+                    obj.draw_polytope(P, color);
                 end
                 
+                if(obj.dt ~= 0 && obj.plot) %if animation it's enabled (dt != 0) (if plot is disabled then disable animations)
+                    pause(obj.dt); %pause for dt seconds
+                end
+               
                 if flips >= obj.max_steps %if the maximum halvings counter reach the limit
                     persist = false; %break the loop
                     continue;
@@ -95,9 +96,6 @@ classdef Simplex
         function P = set_penality(obj, P)
             V = P(:, 1:3, :);
             p = obj.check_bounds(V)*obj.penality;
-            if(max(p) > 0) % NOTE: What is this?
-                p
-            end
             p(p == 0) = 1;
             P(:, 5, :) = p';
         end
@@ -122,15 +120,14 @@ classdef Simplex
 
         %draw the bounds in according to the field and slices parameters
         function y = draw_bounds(obj)
-            if(isempty(obj.bounds))
+            if(length(obj.bounds) == 0)
                 return
             end
             
             X = -obj.field:obj.field/obj.slices:obj.field;
             Y = -obj.field:obj.field/obj.slices:obj.field;
             Z = -obj.field:obj.field/obj.slices:obj.field;
-            
-            zeros(length(obj.bounds), obj.slices, length(X), length(Y));
+            V = zeros(length(obj.bounds), obj.slices, length(X), length(Y));
             
             for k = 1:length(Z)
                 J = zeros(length(X), length(Y));
@@ -155,7 +152,7 @@ classdef Simplex
                 
                 colormap(jet);
                 hold on
-                surf(X, Y, K, 'FaceAlpha', 0.3,'LineStyle','none', 'cdata', J, 'cdatamapping', 'direct'); 
+                s = surf(X, Y, K, 'FaceAlpha', 0.3,'LineStyle','none', 'cdata', J, 'cdatamapping', 'direct'); 
                 colormap(jet);
                 hold on
                 colormap(jet);
@@ -163,17 +160,16 @@ classdef Simplex
         end
         
         %get_start_point returns a random and reasonable start point in bounds
-%         function y = get_start_point(obj)
-%             if(obj.start_point ~= 0)
-%                 y = obj.start_point;
-%             else
-%                 disp("Error you need to write a starting point") % We don't need stochastic elements
-%                 x = obj.field*2*rand - obj.field;
-%                 y = obj.field*2*rand - obj.field;
-%                 z = obj.field*2*rand - obj.field;
-%                 y = [x y z];
-%             end
-%         end
+        function y = get_start_point(obj)
+            if(obj.start_point ~= 0)
+                y = obj.start_point;
+            else
+                x = obj.field*2*rand - obj.field;
+                y = obj.field*2*rand - obj.field;
+                z = obj.field*2*rand - obj.field;
+                y = [x y z];
+            end
+        end
 
         %compute_value is an adapter to the minimize function to compute 
         %the value of a polytope vertex passing the coordinates instead 
@@ -188,12 +184,12 @@ classdef Simplex
             l = sqrt(4*obj.start_area/sqrt(3)); %get the side of the equilateral triangle
             h = sqrt(3)*l/2; %get the height of the equilateral triangle
 
-%             start_point = obj.get_start_point();
+            start_point = obj.get_start_point();
             
-            v1 = [obj.start_point]; %the first vertex is the start point
-            v2 = [obj.start_point + [h, 0 h]]; 
-            v3 = [obj.start_point + [h, l/2 0]];
-            v4 = [obj.start_point + [h, -l/2 0]];
+            v1 = [start_point]; %the first vertex is the start point
+            v2 = [start_point + [h, 0 h]]; 
+            v3 = [start_point + [h, l/2 0]];
+            v4 = [start_point + [h, -l/2 0]];
 
             v1 = [v1 obj.compute_value(v1) 1];
             v2 = [v2 obj.compute_value(v2) 1];
@@ -358,6 +354,9 @@ classdef Simplex
 
         %draw_polytope draws the polytope in the 3-d space
         function y = draw_polytope(obj, P, color)
+            X = P(:, 1);
+            Y = P(:, 2);
+            Z = P(:, 3);
 
             f = [1 2 3; 1 2 4; 1 3 4; 2 3 4]; %faces list every index it's a vertex of the polytope and 3 vertex form a triangular face of the polytope
 
