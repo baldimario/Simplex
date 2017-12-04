@@ -54,14 +54,14 @@ s.slices = 10; %15 planes to draw the isolevel maps
 s.color = 'green'; %simplex politope color
 s.plot = true; %enable the polotting
 
-[value, minimum, flips, halvings, area] =  s.compute() %compute the algorithm
+[value, coordinates, flips, halvings, area] =  s.compute() %compute the algorithm
 
 
-disp('known charge');   
+disp('known charge');
 disp(q);
 
-error_v = abs(cost_function(minimum) - cost_function([q(1) q(2), c]));
-error_c = abs(minimum - [q(1) q(2), c]);
+error_v = abs(cost_function(coordinates) - cost_function(q));
+error_c = abs(coordinates - q);
 disp('error');
 disp(error_v)
 disp(error_c)
@@ -69,7 +69,7 @@ disp(error_c)
 
 
 function f = bound1(x, y, z) %sphere bound
-    f = -((x+.6).^2 + (y-.6).^2 + (z-.1).^2 - 1^2); %sphere
+    f = -((x+.3).^2 + (y+.3).^2 + (z-.1).^2 - .5^2); %sphere
 end
 
 function f = bound2(x, y, z) %sphere bound
