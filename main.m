@@ -47,21 +47,21 @@ for i = -1:1:1
 end
 
 %initializing Simplex class
-s = Simplex(@cost_function, {}, [-.2 -.2 .1], .075, 1e-5, 25); % NOTE: I have changed the value
+s = Simplex(@cost_function, {}, [-.2 .5 .3], .3, 1e-5, 500);
 s.dt = 0; %animation delta time between frames (0 = off)
 s.field = 1; %figure subspace of view
 s.slices = 10; %15 planes to draw the isolevel maps
 s.color = 'green'; %simplex politope color
 s.plot = true; %enable the polotting
 
-[value, coordinates, flips, halvings, area] =  s.compute() %compute the algorithm
+[value, minimum, flips, halvings, area] =  s.compute() %compute the algorithm
 
 
-disp('known charge');
+disp('known charge');   
 disp(q);
 
-error_v = abs(cost_function(coordinates) - cost_function(q));
-error_c = abs(coordinates - q);
+error_v = abs(cost_function(minimum) - cost_function([q(1) q(2), c]));
+error_c = abs(minimum - [q(1) q(2), c]);
 disp('error');
 disp(error_v)
 disp(error_c)
@@ -69,11 +69,7 @@ disp(error_c)
 
 
 function f = bound1(x, y, z) %sphere bound
-    f = -((x+.3).^2 + (y+.3).^2 + (z-.1).^2 - .5^2); %sphere
-end
-
-function f = bound2(x, y, z) %sphere bound
-    f = -((x+1.5).^2 + (y+1.5).^2 + (z+.5).^2 - 2^2);
+    f = -((x+.6).^2 + (y-.6).^2 + (z-.5).^2 - 1.2^2); %sphere
 end
 
 function E = cost_function(qu)

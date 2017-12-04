@@ -1,4 +1,4 @@
-classdef Simplex
+	classdef Simplex
     properties
         func = 0; %function to minimize
         bounds = {}; %bounds list
@@ -25,7 +25,7 @@ classdef Simplex
         end
         
         %core function
-        function [value, coordinates, flips, halvings, area] = compute(obj)
+        function [value, minimum, flips, halvings, area] = compute(obj)
             Polytopes = []; %polytopes list
             halvings = 1; %halving counter
             flips = 1; %flip counter
@@ -88,7 +88,7 @@ classdef Simplex
             end
 
             area = obj.get_area(P); %return the area
-            [value, coordinates] = obj.get_results(P); %return the value of the minimum and the coordinates
+            [value, minimum] = obj.get_results(P); %return the value of the minimum and the coordinates
         end
         
         %set_penality compute the penality for each vertex in according to
@@ -295,7 +295,7 @@ classdef Simplex
                 %draw the plane with the iso-level colors of the function
                 %computed in its coordinates
                 colormap(jet);
-                surf(X, Y, Z, 'CData', reshape(V(j,:,:), [length(X), length(Y)]), 'FaceAlpha', 0.4,'LineStyle','none', 'FaceColor','interp');
+                surf(X, Y, Z, 'CData', reshape(V(j,:,:), [length(X), length(Y)]), 'FaceAlpha', 0.3,'LineStyle','none', 'FaceColor','interp');
             end
         end
 
