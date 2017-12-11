@@ -1,8 +1,8 @@
 import Simplex
 
-close all
-clear
-clc
+%close all
+%clear
+%clc
 
 global z
 global M
@@ -47,7 +47,7 @@ for i = -1:1:1
 end
 
 %initializing Simplex class
-s = Simplex(@cost_function, {}, [-.3 .4 .4], .3, 1e-5, 500);
+s = Simplex(@cost_function, {}, [-.5 -.5 .5], .3, 1e-5, 500);
 s.dt = 0; %animation delta time between frames (0 = off)
 s.field = 1; %figure subspace of view
 s.slices = 10; %15 planes to draw the isolevel maps
@@ -69,7 +69,7 @@ disp(error_c)
 
 
 function f = bound1(x, y, z) %sphere bound
-    f = (x+0.6)^2+(y-0.6)^2+(z-0.5)^2 -(1.2)^2; %sphere
+    f = -((x+1)^2+(y-1)^2+(z-1)^2 -(1.35)^2); %sphere
 end
 
 function E = cost_function(qu)

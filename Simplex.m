@@ -137,7 +137,7 @@
                 for i = 1:length(X)
                     for j = 1:length(Y)                
                         for b = 1:length(obj.bounds)
-                            B(i, j) = B(i, j) && obj.bounds{b}(X(i), Y(j), Z(k)) > 0;
+                            B(i, j) = B(i, j) && obj.bounds{b}(X(i), Y(j), Z(k)) < 0;
                         end
                     end
                 end
@@ -337,19 +337,20 @@
 
         %check_bounds returns true if every bound it's satisfied by the v coordinates as their inputs
         function y = check_bounds(obj, v)
-            y = ones(1, length(v));
+            y = zeros(1, length(v));
             
             if(length(obj.bounds) > 0)
                 for k = 1:length(v)
                     for j = 1:length(obj.bounds)
-                        if obj.bounds{j}(v(k, 1), v(k, 2), v(k, 3)) < 0
-                            y(1,k) = 0;
+                        value = obj.bounds{j}(v(k, 1), v(k, 2), v(k, 3));
+                        if value > 0
+                            y(1,k) = y(1,k) + 1;
                         end
                     end
                 end
             end
             
-            y = y == 0;
+            y = y ~= 0;
         end
 
         %draw_polytope draws the polytope in the 3-d space
