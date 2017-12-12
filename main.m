@@ -47,7 +47,7 @@ for i = -1:1:1
 end
 
 %initializing Simplex class
-s = Simplex(@cost_function, {}, [-.5 -.5 .5], .3, 1e-5, 500);
+s = Simplex(@cost_function, {@bound1}, [-.2 .5 .3], .3, 1e-3, 500);
 s.dt = 0; %animation delta time between frames (0 = off)
 s.field = 1; %figure subspace of view
 s.slices = 10; %15 planes to draw the isolevel maps
